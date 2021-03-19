@@ -133,7 +133,8 @@ router.get(
   customerController.getEspecialidadCentrosaludById
 );
 
-//Por especialidad centro salud consentimientos asociados Menu Especialidades >Consentimientos
+//Por especialidad centro salud consentimientos asociados
+// Menu Especialidades >Consentimientos
 router.get(
   "/apifactprocessmed/especialidadcentrosaludconsentimientos/:id",md_auth.ensureAuth,
   customerController.getByEspecialidadCentrosaludConsentimientos

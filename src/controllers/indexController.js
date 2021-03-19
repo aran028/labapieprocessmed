@@ -4,13 +4,14 @@ var bcrypt=require("bcrypt-nodejs");
 const jwt = require('jsonwebtoken');
 var secret='clave_secreta_curso_desarrollar_red_social_angular';
 
+
+
 //RUTAS DE CENTROS DE SALUD
 
-//Todos Centros de salud.
-//Menu Centros de Salud > Indice
+//MENU Centros de Salud > Indice
 controller.getCentrosdeSalud = async (req, res) => {
   mysqlConnection.query(
-    `SELECT c.nombre, ci.nombre AS ciudad, p.nombre AS provincia,c.telefono,c.correo,c.ciglas AS NIF,c.id
+    `SELECT c.nombre, ci.nombre AS ciudad, p.nombre AS provincia,c.telefono,c.correo,c.ciglas AS NIF
     FROM centro_de_salud c, ciudad ci, provincia p 
     WHERE c.id_ciudad=ci.id AND ci.id_provincia=p.id
     ORDER BY c.nombre`,
@@ -21,7 +22,7 @@ controller.getCentrosdeSalud = async (req, res) => {
   );
 };
 
-//Menu Centros de Salud/Especialidad DESPLEGABLE
+//MENU Centros de Salud/Especialidad DESPLEGABLE
 controller.getCentrosdeSaludDesplegable = async (req, res) => {
   mysqlConnection.query(
     `SELECT c.id, c.nombre, ci.nombre AS ciudad, p.nombre AS provincia,c.telefono,c.correo,c.ciglas AS NIF
@@ -44,11 +45,13 @@ controller.getCentrodeSaludById = async (req, res) => {
     res.json(rows);
   });
 };
+
+//MENU Centros de Salud > Especialistas
 //Por centro de salud indicado en ID especialistas asociados
 controller.getByCentrodesaludEspecialistas = async (req, res) => {
   const { id } = req.params;
   var sql = `SELECT c.ciglas AS NIF,c.nombre AS centro_salud,e.dni,  
-    f.id AS id_especialidad, f.nombre AS Especialidad, ciu.nombre AS ciudad, e.firma,e.hash_firma 
+   f.nombre AS Especialidad, ciu.nombre AS ciudad, e.hash_firma 
     FROM centro_de_salud c, especialista e, especialidad f, ciudad ciu
 WHERE c.id=e.id_centro_salud 
 AND e.especialidad=f.id
@@ -273,17 +276,16 @@ controller.getEspecialidadById = async (req, res) => {
     res.json(rows);
   });
 };
-
+//MENU Especialidades > Especialistas
 controller.getByEspecialidadEspecialistas = async (req, res) => {
   const { id } = req.params;
-  var sql = `SELECT e.dni, 
-      e.id_centro_salud ,c.nombre As centro_salud, ciu.nombre AS ciudad_nombre,
-        e.firma, e.hash_firma
+  var sql = `SELECT e.dni,c.nombre As centro_salud, ciu.nombre AS ciudad_nombre, e.hash_firma
     FROM centro_de_salud c, especialista e, especialidad a, ciudad ciu
 WHERE a.id=e.especialidad
 AND e.id_centro_salud=c.id
 AND e.ciudad=ciu.id
-AND a.id=?`;
+AND a.id=?
+ORDER BY c.nombre, e.dni`;
   mysqlConnection.query(sql, [id], (err, rows, fields) => {
     if (err) throw err;
     res.json(rows);
@@ -321,17 +323,21 @@ controller.getEspecialidadCentrosaludById = async (req, res) => {
 };
 
 //Por especialidad centro salud indicado en ID consentimientos
+//MENU Especialidad>Consentimientos
 controller.getByEspecialidadCentrosaludConsentimientos = async (req, res) => {
   const { id } = req.params;
-  var sql = `SELECT c.id AS id_consentimiento, c.procedimiento, cs.nombre AS centro_salud, c.especialista,
-  c.firma_casa, c.paciente, c.hash_fpaciente, 
+  var sql = `SELECT c.id AS id_consentimiento,pr.nombre AS nom_proc, cs.nombre AS centro_salud, e.dni, p.dni AS dni_pac,
+  c.firma_casa, c.hash_fpaciente, 
   DATE_FORMAT(c.fecha_creacion, '%d/%m/%Y') AS fechacreacion
-FROM especialidad_centro_salud a, consentimiento c, especialista e, especialidad f, paciente p, centro_de_salud cs
+FROM especialidad_centro_salud a, consentimiento c, especialista e, especialidad f, paciente p, centro_de_salud cs, procedimientos pr, procedimientos_centro_salud prs
 WHERE a.id=c.especialidad 
+AND c.estado=1
 AND a.id_especialidad=f.id
 AND a.id_centro_salud=cs.id
 AND c.especialista=e.id
 AND c.paciente=p.id
+AND c.procedimiento=prs.id
+AND prs.id_procedimiento=pr.id
 AND f.id=?`;
   mysqlConnection.query(sql, [id], (err, rows, fields) => {
     if (err) throw err;
