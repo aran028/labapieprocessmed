@@ -38,7 +38,7 @@ customerController.getCentrosdeSaludDesplegable
 
 //RUTA DE CONSENTIMIENTOS
 
-//Menu Consentimientos >Firmados
+//MENU Consentimientos >Cuadro resumen
 router.get(
   "/apifactprocessmed/consentimientosFNF",md_auth.ensureAuth,
   customerController.getConsentimientosFNF
@@ -142,12 +142,13 @@ router.get(
 
 //RUTAS DE ESPECIALISTAS
 
-//Todos los especialistas de indice menu especialistas>Indice
+//Todos los especialistas de indice 
+//MENU especialistas>Indice
 router.get(
   "/apifactprocessmed/especialistas",md_auth.ensureAuth,
   customerController.getEspecialista
 );
-
+//MENU especialistas>Consentimientos
 //Desplegable de especialistas
 router.get(
   "/apifactprocessmed/especialistasD",md_auth.ensureAuth,
@@ -166,6 +167,7 @@ router.get(
 );
 //RUTAS DE PACIENTES
 
+//MENU: Pacientes>Indice
 //Todos los pacientes
 router.get("/apifactprocessmed/pacientes", md_auth.ensureAuth,customerController.getPaciente);
 
@@ -175,7 +177,8 @@ router.get(
   customerController.getPacienteById
 );
 
-//Todos los pacientes con consentimientos para el desplegable Menu Pacientes >Consentimientos
+//MENU Pacientes>Consentimientos
+//Desplegable
 router.get("/apifactprocessmed/pacientesD", md_auth.ensureAuth,customerController.getPacienteD);
 
 //Por paciente consentimientos asociados
@@ -213,6 +216,7 @@ router.get(
   customerController.getProcedimientoCentroSaludById
 );
 
+//MENU Procedimientos >Consentimientos
 //Por procedimiento centro salud indicado en el ID consentimientos asociados
 router.get(
   "/apifactprocessmed/procedimientocentrosaludconsentimientos/:id",md_auth.ensureAuth,

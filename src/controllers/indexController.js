@@ -165,10 +165,11 @@ ORDER BY Anio, c.estado,c.firma_casa ASC`,
   );
 };
 
-//Consulta del menú Consentimientos> Firmados. Recoge todos los consentimientos los facturados y los pendientes de facturar
+//MENU Consentimientos> Cuadro Resumen
+// Recoge todos los consentimientos con estado 0 y firmados y los no firmados
 controller.getConsentimientosFNF = async (req, res) => {
   mysqlConnection.query(
-    `SELECT YEAR(c.fecha_creacion) AS Anio, c.estado, COUNT(c.id) AS contador
+    `SELECT YEAR(c.fecha_creacion) AS Anio, c.estado, COUNT(c.id) AS Nº_de_consentimientos
  FROM consentimiento c, centro_de_salud cs, especialista e, especialidad esp, especialidad_centro_salud espc, procedimientos_centro_salud prc, procedimientos p, paciente pac
  WHERE 
  c.especialista=e.id
@@ -347,12 +348,13 @@ AND f.id=?`;
 
 //RUTAS DE ESPECIALISTAS
 
+//MENU Especialistas >Indice
 //Todos Especialistas
 controller.getEspecialista = async (req, res) => {
   mysqlConnection.query(
-    `SELECT DISTINCT e.id, e.dni,
-    CONCAT(e.nombre, ' ', e.apellido) nombre_completo,    
-    es.nombre AS especialidad, c.nombre AS centro, ci.nombre AS ciudad,e.firma, e.hash_firma
+    `SELECT DISTINCT e.dni,
+    CONCAT(e.apellido, ', ', e.nombre) nombre_completo,    
+    es.nombre AS especialidad, c.nombre AS centro, ci.nombre AS ciudad,e.hash_firma
       FROM especialista e, centro_de_salud c, ciudad ci, provincia pr, especialidad es, consentimiento co
 WHERE e.id_centro_salud = c.id
 AND e.ciudad=ci.id 
@@ -365,6 +367,16 @@ ORDER BY e.dni`,
       res.json(rows);
      });
 };
+//MENU Especialista>Consentimientos
+//Desplegable de especialista
+controller.getEspecialistaD = async (req, res) => {
+  mysqlConnection.query('SELECT e.id, e.dni, ct.nombre AS centroSalud FROM especialista e, centro_de_salud ct where e.id_centro_salud=ct.id ORDER BY dni ',
+ (err, rows, fields) => {
+      if (err) throw err;
+      res.json(rows);
+     });
+};
+
 //Especialista indicado en ID
 controller.getEspecialistaById = async (req, res) => {
   const { id } = req.params;
@@ -374,17 +386,6 @@ controller.getEspecialistaById = async (req, res) => {
     res.json(rows);
   });
 };
-
-//Desplegable de especialista>consentimientos
-controller.getEspecialistaD = async (req, res) => {
-  mysqlConnection.query('SELECT e.id, e.dni, ct.nombre AS centroSalud FROM especialista e, centro_de_salud ct where e.id_centro_salud=ct.id ORDER BY dni ',
- (err, rows, fields) => {
-      if (err) throw err;
-      res.json(rows);
-     });
-};
-
-
 //Todas especialidades
 controller.getEspecialidad = async (req, res) => {
   mysqlConnection.query("SELECT id,nombre FROM especialidad WHERE activo=1", (err, rows, fields) => {
@@ -393,25 +394,30 @@ controller.getEspecialidad = async (req, res) => {
     res.json(rows);
   });
 };
-//Por especialista indicado en ID obtener todos sus consentimientos menu especialista >consentimientos
+
+//MENU Especialistas >Consentimientos
+//Por especialista indicado en ID obtener todos sus consentimientos firmados por especialista y paciente (estado=1)
 controller.getByEspecialistaConsentimientos = async (req, res) => {
   const { id } = req.params;
   console.log(id);
- var sql = `SELECT c.id AS id_consentimiento, 
+ var sql = `SELECT c.id AS id_cto, 
   f.nombre AS especialidad_nombre, 
-  c.procedimiento, 
-  c.video,
-      c.mostrar_video,
-      c.audio_aceptacion,
-      c.paciente,
+  pro.nombre AS procedimiento,
+  v.video,
+  p.dni,
       c.hash_fpaciente,
       c.firma_casa,
-      DATE_FORMAT(c.fecha_creacion, '%d/%m/%Y') AS fechacr
-FROM paciente p, consentimiento c, especialidad f,  especialista e, especialidad_centro_salud esp
+      c.estado,
+      DATE_FORMAT(c.fecha_creacion, '%d/%m/%Y') AS fecha_creacion
+FROM paciente p, consentimiento c, especialidad f,  especialista e, especialidad_centro_salud esp, procedimientos pro, procedimientos_centro_salud prc, video v
 WHERE c.paciente=p.id
 AND c.especialidad=esp.id
 AND c.especialista=e.id
 AND esp.id_especialidad=f.id
+AND c.estado=1
+AND c.procedimiento= prc.id
+AND prc.id_procedimiento=pro.id
+AND c.video=v.id
 AND e.id=?`;
   mysqlConnection.query(sql, [id], (err, rows, fields) => {
     if (err) throw err;
@@ -421,15 +427,22 @@ AND e.id=?`;
 
 //RUTAS DE PACIENTES
 
-//Todos Pacientes
+//MENU Pacientes>Indice
+//Todos Pacientes con consentimientos firmados o no 
+//DATE_FORMAT(p.fecha_nacimiento, '%d/%m/%Y') AS fechanaci,    //
 controller.getPaciente = async (req, res) => {
   mysqlConnection.query(
-    `SELECT DISTINCT  p.dni, CONCAT(p.apellido, ' ', p.nombre) nombre_completo, 
-     DATE_FORMAT(p.fecha_nacimiento, '%d/%m/%Y') AS fechanaci,    
-     p.direccion,p.correo,p.telefono
-     FROM paciente p, consentimiento c 
+    `SELECT DISTINCT p.dni, CONCAT(p.apellido, ', ', p.nombre) nombre_completo, 
+        ciu.nombre AS ciudad,
+      p.correo,
+      p.telefono,
+     
+           cs.nombre AS centro_salud   
+      FROM paciente p,consentimiento c, especialidad_centro_salud ec, centro_de_salud cs, ciudad ciu
       WHERE p.id=c.paciente
-      AND p.id=c.paciente
+      AND c.especialidad=ec.id
+      AND ec.id_centro_salud=cs.id
+      AND p.ciudad=ciu.id
       ORDER BY p.dni`,
     (err, rows, fields) => {
       if (err) throw error;
@@ -448,35 +461,38 @@ controller.getPacienteById = async (req, res) => {
     res.json(rows);
   });
 };
+//MENU Pacientes>Consentimientos
 //Todos Pacientes con consentimientos desplegable
 controller.getPacienteD = async (req, res) => {
   mysqlConnection.query(
-    "SELECT DISTINCT p.dni,p.id, p.nombre,p.apellido FROM paciente p, consentimiento c WHERE p.id=c.paciente ORDER BY dni",
+    "SELECT DISTINCT p.dni,p.id,  CONCAT(p.apellido, ', ', p.nombre) apellidosynombre FROM paciente p, consentimiento c WHERE p.id=c.paciente ORDER BY dni",
     (err, rows, fields) => {
       if (err) throw error;
       res.json(rows);
     }
   );
 };
+//MENU Pacientes>Consentimientos
 //Por paciente indicado en ID consentimientos Menu Pacientes >Consentimientos
 controller.getByPacienteConsentimientos = async (req, res) => {
   const { id } = req.params;
   console.log(id);
-  var sql = `SELECT c.id AS id_cto, p.dni, 
+  var sql = `SELECT c.id AS id_cto, c.estado, p.dni, 
   f.nombre AS especialidad_nombre, 
-  c.procedimiento, 
-  c.video,
-      c.mostrar_video,
-      c.audio_aceptacion,
-      c.firma_casa,
-      c.completado_paciente,
-      c.hash_fpaciente,
-       DATE_FORMAT(c.fecha_creacion, '%d/%m/%Y') AS fechacr
-FROM paciente p, consentimiento c, especialidad f, especialidad_centro_salud esp
+  pr.nombre AS procedimiento,
+  v.video,
+   c.firma_casa,
+       c.hash_fpaciente,       
+       DATE_FORMAT(c.fecha_creacion, '%d/%m/%Y') AS fecha_creacion
+FROM paciente p, consentimiento c, especialidad f, especialidad_centro_salud esp, video v, procedimientos pr, procedimientos_centro_salud pcs
 WHERE c.paciente=p.id
 AND c.especialidad=esp.id
 AND esp.id_especialidad=f.id
-AND p.dni=?`;
+AND c.video=v.id
+AND c.procedimiento=pcs.id
+AND pcs.id_procedimiento=pr.id
+AND p.dni=?
+ORDER BY c.estado`;
   mysqlConnection.query(sql, [id], (err, rows, fields) => {
     if (err) throw err;
     res.json(rows);
@@ -503,6 +519,7 @@ controller.getProcedimiento = async (req, res) => {
     }
   );
 };
+
 //Procedimiento indicado en ID
 controller.getProcedimientoById = async (req, res) => {
   const { id } = req.params;
@@ -515,12 +532,15 @@ controller.getProcedimientoById = async (req, res) => {
 
 //RUTAS DE PROCEDIMIENTOS CENTRO SALUD
 //MENU consentimientos>procedimientos
-//Procedimientos de todos los centros de salud y activos con varios campos para el desplegable
+//Desplegable Procedimientos de todos los centros de salud y activos que tengan consentimientos asociados 
 controller.getProcedimientoCentroSaludD = async (req, res) => {
   mysqlConnection.query(
-    `SELECT pcs.id, cs.nombre, pcs.id_procedimiento,p.nombre AS procedimiento
-    FROM procedimientos_centro_salud pcs,procedimientos p, centro_de_salud cs
-    WHERE pcs.id_procedimiento=p.id AND pcs.id_centro_salud=cs.id AND pcs.activo=1 ORDER BY cs.nombre` ,
+    `SELECT DISTINCT pcs.id, cs.nombre, pcs.id_procedimiento,p.nombre AS procedimiento
+    FROM procedimientos_centro_salud pcs,procedimientos p, centro_de_salud cs, consentimiento c
+    WHERE pcs.id_procedimiento=p.id 
+    AND c.procedimiento=pcs.id
+    AND pcs.id_centro_salud=cs.id 
+    AND pcs.activo=1 ORDER BY p.nombre,cs.nombre` ,
     (err, rows, fields) => {
       if (err) throw error;
       res.json(rows);
@@ -538,12 +558,11 @@ controller.getProcedimientoCentroSaludById = async (req, res) => {
     res.json(rows);
   });
 };
-//Por procedimiento seleccionado indicar consentimientos asociados menu consentimientos > procedimientos
-//Menu consentimientos >Procedimientos
+
+//MENU consentimientos >Procedimientos
+//Por centro-salud - procedimiento seleccionado indicar consentimientos asociados con estado 0 y 1
 controller.getByProcedimientoCentroSaludconsentimentos = async (req, res) => {
-  //Me llega el id del procedimiento
   const { id } = req.params;
-  console.log("mando el id"+id);
   var sql = `SELECT c.id AS id_cto,p.nombre, c.estado, ctro.nombre AS nombreCentro, esp.nombre AS nomespe,  
   DATE_FORMAT(c.fecha_creacion, '%d/%m/%Y') AS fechacreacion
   FROM procedimientos_centro_salud prc, consentimiento c, procedimientos p,especialista e, centro_de_salud ctro, especialidad esp
